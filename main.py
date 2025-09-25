@@ -42,7 +42,7 @@ async def on_member_join(member):
     # send a welcome message to the welcome channel
     channel = client.get_channel(server_config.welcome_channel_id)
     if channel and server_config.get_message('welcome'):
-        await send_button_message(channel, 'welcome')
+        await send_button_message(channel, 'welcome', member.guild.id, member)
 
 @client.event
 async def on_message(message):
@@ -67,7 +67,7 @@ async def process_command(message: discord.Message):
             "Available commands:\n"
             "!init - Initialize server config (only if not already initialized).\n"
             "!setwelcomechannel <channel_id> - Set the welcome channel by ID.\n"
-            "!setmessage <message_id> <message> - Set a message by ID (ID \"welcome\" is the welcome message that gets sent into the specified welcome channel).\n"
+            "!setmessage <message_id> <message> - Set a message by ID (ID \"welcome\" is the welcome message that gets sent into the specified welcome channel). Use \"<user>\" in the message text to mention the user.\n"
             "!listmessages - List all configured messages.\n"
             "!setbutton <message_id> <target_message_id> <button_label> - Add a button to a message.\n"
             "!sendmessage <message_id> - Send a configured message to the current channel.\n"
@@ -172,6 +172,7 @@ async def send_button_message(
     target: discord.abc.Messageable,
     message_id: str,
     guild_id: Optional[int] = None,
+    addressed_user: Optional[discord.User] = None,
 ):
     """
     Send a message (with optional buttons) to `target` (channel or user).
@@ -215,6 +216,7 @@ async def send_button_message(
                     interaction.user,  # DM target
                     next_id,
                     guild_id=interaction.guild.id if interaction.guild else resolved_guild_id,
+                    addressed_user=interaction.user,
                 )
 
             btn = discord.ui.Button(
@@ -224,9 +226,15 @@ async def send_button_message(
             btn.callback = button_callback
             view.add_item(btn)
 
-        await target.send(content=msg["content"], view=view)
+        if addressed_user:
+            await target.send(content=msg["content"].replace("<user>", f"<@{addressed_user.id}>"), view=view)
+        else:
+            await target.send(content=msg["content"], view=view)
     else:
-        await target.send(content=msg["content"])
+        if addressed_user:
+            await target.send(content=msg["content"].replace("<user>", f"<@{addressed_user.id}>"))
+        else:
+            await target.send(content=msg["content"])
 
 
 client.run(os.environ.get(constants.BOT_TOKEN_VARIABLE))
