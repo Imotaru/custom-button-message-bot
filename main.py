@@ -71,6 +71,8 @@ async def process_command(message: discord.Message):
             "!listmessages - List all configured messages.\n"
             "!setbutton <message_id> <target_message_id> <button_label> - Add a button to a message.\n"
             "!sendmessage <message_id> - Send a configured message to the current channel.\n"
+            "!deletemesssage <message_id> - Delete a configured message by ID.\n"
+            "!deletebutton <message_id> <button_label> - Delete a button from a message by its label.\n"
         )
         await message.channel.send(help_message)
     elif command[0] == "!init":
@@ -162,6 +164,42 @@ async def process_command(message: discord.Message):
             msg = server_config.get_message(message_id)
             if msg:
                 await send_button_message(message.channel, message_id)
+            else:
+                await message.channel.send(f"Message ID '{message_id}' not found.")
+        else:
+            await message.channel.send("Server config not found.")
+    elif command[0] == "!deletemessage":
+        if len(command) < 2:
+            await message.channel.send("Usage: !deletemessage <message_id>")
+            return
+        message_id = command[1]
+        server_config = server_configs.get(message.guild.id)
+        if server_config:
+            if server_config.get_message(message_id):
+                del server_config.messages[message_id]
+                server_config.save_config()
+                await message.channel.send(f"Message ID '{message_id}' deleted.")
+            else:
+                await message.channel.send(f"Message ID '{message_id}' not found.")
+        else:
+            await message.channel.send("Server config not found.")
+    elif command[0] == "!deletebutton":
+        if len(command) < 3:
+            await message.channel.send("Usage: !deletebutton <message_id> <button_label>")
+            return
+        message_id = command[1]
+        button_label = " ".join(command[2:])
+        server_config = server_configs.get(message.guild.id)
+        if server_config:
+            msg = server_config.get_message(message_id)
+            if msg:
+                buttons = msg.get("buttons", [])
+                new_buttons = [btn for btn in buttons if btn.get("label") != button_label]
+                if len(new_buttons) != len(buttons):
+                    server_config.set_message(message_id, msg.get("content", ""), new_buttons)
+                    await message.channel.send(f"Button '{button_label}' deleted from message '{message_id}'.")
+                else:
+                    await message.channel.send(f"Button '{button_label}' not found in message '{message_id}'.")
             else:
                 await message.channel.send(f"Message ID '{message_id}' not found.")
         else:
