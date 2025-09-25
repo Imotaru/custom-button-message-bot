@@ -33,11 +33,14 @@ class Server_config:
 		}
 		self.save_config()
 
-	def add_button(self, message_id, button_label, target_message_id):
+	def set_button(self, message_id, button_label, target_message_id):
 		message = self.get_message(message_id)
 		if message:
-			message['buttons'].append({
-				'label': button_label,
-				'target': target_message_id
-			})
-			self.set_message(message_id, message['content'], message['buttons'])
+			buttons = message.get('buttons') or []
+			for i, btn in enumerate(buttons):
+				if btn.get('label') == button_label:
+					buttons[i] = {'label': button_label, 'target': target_message_id}
+					break
+			else:
+				buttons.append({'label': button_label, 'target': target_message_id})
+			self.set_message(message_id, message.get('content'), buttons)

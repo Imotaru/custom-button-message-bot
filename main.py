@@ -69,7 +69,7 @@ async def process_command(message: discord.Message):
             "!setwelcomechannel <channel_id> - Set the welcome channel by ID.\n"
             "!setmessage <message_id> <message> - Set a message by ID (ID \"welcome\" is the welcome message that gets sent into the specified welcome channel).\n"
             "!listmessages - List all configured messages.\n"
-            "!addbutton <message_id> <button_label> <target_message_id> - Add a button to a message.\n"
+            "!setbutton <message_id> <target_message_id> <button_label> - Add a button to a message.\n"
             "!sendmessage <message_id> - Send a configured message to the current channel.\n"
         )
         await message.channel.send(help_message)
@@ -136,17 +136,17 @@ async def process_command(message: discord.Message):
             await message.channel.send(f"Message '{message_id}' set to: {message_content}")
         else:
             await message.channel.send("Server config not found.")
-    elif command[0] == "!addbutton":
+    elif command[0] == "!setbutton":
         if len(command) < 4:
-            await message.channel.send("Usage: !addbutton <message_id> <button_label> <target_message_id>")
+            await message.channel.send("Usage: !setbutton <message_id> <target_message_id> <button_label>")
             return
         message_id = command[1]
-        button_label = command[2]
-        target_message_id = command[3]
+        target_message_id = command[2]
+        button_label = " ".join(command[3:])
         server_config = server_configs.get(message.guild.id)
         if server_config:
             if server_config.get_message(message_id):
-                server_config.add_button(message_id, button_label, target_message_id)
+                server_config.set_button(message_id, button_label, target_message_id)
                 await message.channel.send(f"Button '{button_label}' added to message '{message_id}' linking to '{target_message_id}'.")
             else:
                 await message.channel.send(f"Message ID '{message_id}' not found.")
