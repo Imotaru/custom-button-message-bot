@@ -1,0 +1,27 @@
+{
+    "messages": {
+        "welcome": {
+            "content": "Hello, are you interested in AI?",
+            "buttons": [
+                {
+                    "label": "Yes",
+                    "target": "welcomeyes"
+                },
+                {
+                    "label": "No",
+                    "target": "welcomeno"
+                }
+            ]
+        },
+        "welcomeyes": {
+            "content": "Good",
+            "buttons": []
+        },
+        "welcomeno": {
+            "content": "Why Not?",
+            "buttons": []
+        }
+    },
+    "welcome_channel_id": 1229811170748272653,
+    "server_id": 1229811170748272650
+}
