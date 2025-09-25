@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 import discord
 import constants
 from server_config import Server_config
@@ -168,28 +169,67 @@ async def process_command(message: discord.Message):
         else:
             await message.channel.send("Server config not found.")
 
-# sends the message with buttons you can click, once clicked it sends the target message
-async def send_button_message(channel, message_id):
-    server_config = server_configs.get(channel.guild.id)
+
+async def send_button_message(
+    target: discord.abc.Messageable,
+    message_id: str,
+    guild_id: Optional[int] = None,
+):
+    """
+    Send a message (with optional buttons) to `target` (channel or user).
+    On button press, the *next* message is sent to the user's DMs.
+    """
+
+    # Try to infer guild_id if not provided (works for guild channels/members).
+    resolved_guild_id = guild_id
+    if resolved_guild_id is None:
+        # Many Messageables (TextChannel, Thread) have .guild
+        guild = getattr(target, "guild", None)
+        if guild is not None:
+            resolved_guild_id = guild.id
+
+    if resolved_guild_id is None:
+        # DM targets don't have a guild; caller must provide guild_id.
+        return
+
+    server_config = server_configs.get(resolved_guild_id)
     if not server_config:
         return
+
     msg = server_config.get_message(message_id)
     if not msg:
         return
 
-    buttons = msg.get('buttons', [])
+    buttons = msg.get("buttons", [])
     if buttons:
         view = discord.ui.View()
+
         for button in buttons:
-            async def button_callback(interaction, target=button['target']):
+            # Capture per-iteration values safely
+            next_id = button.get("target")
+            label = button.get("label", "Next")
+
+            async def button_callback(interaction: discord.Interaction, next_id=next_id):
+                # Defer to avoid "This interaction failed"
                 await interaction.response.defer()
-                await send_button_message(interaction.channel, target)
-            btn = discord.ui.Button(label=button['label'], style=discord.ButtonStyle.primary)
+                # Always continue in the user's DMs, using the guild from the interaction
+                await send_button_message(
+                    interaction.user,  # DM target
+                    next_id,
+                    guild_id=interaction.guild.id if interaction.guild else resolved_guild_id,
+                )
+
+            btn = discord.ui.Button(
+                label=label,
+                style=discord.ButtonStyle.primary,
+            )
             btn.callback = button_callback
             view.add_item(btn)
-        await channel.send(content=msg['content'], view=view)
+
+        await target.send(content=msg["content"], view=view)
     else:
-        await channel.send(content=msg['content'])
+        await target.send(content=msg["content"])
+
 
 client.run(os.environ.get(constants.BOT_TOKEN_VARIABLE))
 
