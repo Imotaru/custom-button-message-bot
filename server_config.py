@@ -27,9 +27,12 @@ class Server_config:
 		return self.messages.get(message_id)
 
 	def set_message(self, message_id, content, buttons=None):
+		if buttons is None:
+			# this is so buttons can be overwritten when the argument is passed
+			buttons = self.messages.get(message_id, {}).get('buttons', [])
 		self.messages[message_id] = {
 			'content': content,
-			'buttons': buttons or []
+			'buttons': buttons
 		}
 		self.save_config()
 
