@@ -66,9 +66,8 @@ async def process_command(message: discord.Message):
         help_message = (
             "Available commands:\n"
             "!init - Initialize server config (only if not already initialized).\n"
-            "!setwelcome <message> - Set the welcome message.\n"
             "!setwelcomechannel <channel_id> - Set the welcome channel by ID.\n"
-            "!setmessage <message_id> <message> - Set a message by ID.\n"
+            "!setmessage <message_id> <message> - Set a message by ID (ID \"welcome\" is the welcome message that gets sent into the specified welcome channel).\n"
             "!listmessages - List all configured messages.\n"
             "!addbutton <message_id> <button_label> <target_message_id> - Add a button to a message.\n"
             "!sendmessage <message_id> - Send a configured message to the current channel.\n"
@@ -86,17 +85,6 @@ async def process_command(message: discord.Message):
             config.save_config()
             server_configs[message.guild.id] = config
             await message.channel.send("Server config initialized, please use !setwelcome <message> to set the welcome message and !setwelcomechannel <channel_id> to set the welcome channel.")
-    elif command[0] == "!setwelcome":
-        if len(command) < 2:
-            await message.channel.send("Please provide a welcome message.")
-            return
-        welcome_message = " ".join(command[1:])
-        server_config = server_configs.get(message.guild.id)
-        if server_config:
-            server_config.set_message('welcome', welcome_message)
-            await message.channel.send(f"Welcome message set to: {welcome_message}")
-        else:
-            await message.channel.send("Server config not found.")
     elif command[0] == "!setwelcomechannel":
         if len(command) < 2:
             await message.channel.send("Please provide a channel ID.")
