@@ -211,22 +211,25 @@ async def send_button_message(
     message_id: str,
     guild_id: Optional[int] = None,
     addressed_user: Optional[discord.User] = None,
+    interaction: Optional[discord.Interaction] = None,
+    ephemeral: bool = False,
 ):
     """
-    Send a message (with optional buttons) to `target` (channel or user).
-    On button press, the *next* message is sent to the user's DMs.
+    Send a message (with optional buttons).
+    - Normal path: sends to `target` (channel or user).
+    - On button press: reply with an ephemeral message in the channel instead of DMing.
     """
 
-    # Try to infer guild_id if not provided (works for guild channels/members).
+    # Resolve guild id (prefer interaction guild if present)
     resolved_guild_id = guild_id
+    if interaction and interaction.guild:
+        resolved_guild_id = interaction.guild.id
     if resolved_guild_id is None:
-        # Many Messageables (TextChannel, Thread) have .guild
         guild = getattr(target, "guild", None)
         if guild is not None:
             resolved_guild_id = guild.id
 
     if resolved_guild_id is None:
-        # DM targets don't have a guild; caller must provide guild_id.
         return
 
     server_config = server_configs.get(resolved_guild_id)
@@ -238,41 +241,49 @@ async def send_button_message(
         return
 
     buttons = msg.get("buttons", [])
+    view = None
     if buttons:
         view = discord.ui.View()
-
         for button in buttons:
-            # Capture per-iteration values safely
             next_id = button.get("target")
             label = button.get("label", "Next")
 
-            async def button_callback(interaction: discord.Interaction, next_id=next_id):
-                # Defer to avoid "This interaction failed"
-                await interaction.response.defer()
-                # Always continue in the user's DMs, using the guild from the interaction
+            async def button_callback(cb_interaction: discord.Interaction, next_id=next_id):
                 await send_button_message(
-                    interaction.user,  # DM target
-                    next_id,
-                    guild_id=interaction.guild.id if interaction.guild else resolved_guild_id,
-                    addressed_user=interaction.user,
+                    target=None,
+                    message_id=next_id,
+                    guild_id=cb_interaction.guild.id if cb_interaction.guild else resolved_guild_id,
+                    addressed_user=cb_interaction.user,
+                    interaction=cb_interaction,
+                    ephemeral=True,
                 )
 
-            btn = discord.ui.Button(
-                label=label,
-                style=discord.ButtonStyle.primary,
-            )
+            btn = discord.ui.Button(label=label, style=discord.ButtonStyle.primary)
             btn.callback = button_callback
             view.add_item(btn)
 
-        if addressed_user:
-            await target.send(content=msg["content"].replace("<user>", f"<@{addressed_user.id}>"), view=view)
+    content = msg["content"]
+    if addressed_user:
+        content = content.replace("<user>", f"<@{addressed_user.id}>")
+
+    # If coming from an interaction and ephemeral requested, respond ephemerally
+    if interaction is not None and ephemeral:
+        send_kwargs = {"content": content, "ephemeral": True}
+        if view is not None:
+            send_kwargs["view"] = view
+
+        if not interaction.response.is_done():
+            await interaction.response.send_message(**send_kwargs)
         else:
-            await target.send(content=msg["content"], view=view)
-    else:
-        if addressed_user:
-            await target.send(content=msg["content"].replace("<user>", f"<@{addressed_user.id}>"))
+            await interaction.followup.send(**send_kwargs)
+        return
+
+    # Fallback: normal send to target (public message)
+    if target is not None:
+        if view is None:
+            await target.send(content=content)
         else:
-            await target.send(content=msg["content"])
+            await target.send(content=content, view=view)
 
 
 client.run(os.environ.get(constants.BOT_TOKEN_VARIABLE))
