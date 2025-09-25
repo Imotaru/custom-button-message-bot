@@ -110,8 +110,18 @@ async def process_command(message: discord.Message):
             if not server_config.messages:
                 await message.channel.send("No messages configured.")
             else:
-                msg_list = "\n".join([f"{msg_id}: {msg['content']}" for msg_id, msg in server_config.messages.items()])
-                await message.channel.send(f"Configured messages:\n{msg_list}")
+                lines = ["Configured messages:"]
+                for msg_id, msg in server_config.messages.items():
+                    content = msg.get("content", "")
+                    preview = content[:30] + ("..." if len(content) > 30 else "")
+                    lines.append(f"`{msg_id}`: {preview}")
+                    buttons = msg.get("buttons", [])
+                    if buttons:
+                        for idx, btn in enumerate(buttons, start=1):
+                            label = btn.get("label", "(no label)")
+                            target = btn.get("target", "(no target)")
+                            lines.append(f"- [{idx}] {label} -> {target}")
+                await message.channel.send("\n".join(lines))
         else:
             await message.channel.send("Server config not found.")
     elif command[0] == "!setmessage":
