@@ -48,8 +48,7 @@ async def on_member_join(member):
         print("no server config found for this guild id " + str(member.guild.id))
         return
 
-    # don't send a message on join if the welcome role is set or the welcome channel is not set
-    if server_config.welcome_role_id != -1 or server_config.welcome_channel_id == -1:
+    if not server_config.send_welcome_on_join or server_config.welcome_channel_id == -1:
         return
 
     await send_welcome_message(member, server_config)
@@ -103,13 +102,14 @@ async def process_command(message: discord.Message):
             "Available commands:\n"
             "!init - Initialize server config (only if not already initialized).\n"
             "!setwelcomechannel <channel_id> - Set the welcome channel by ID.\n"
-            "!setwelcomerole <role_id> - Set the welcome role by ID. If this value is set to anything other than -1 then the welcome message will be sent when the role is added instead of on join.\n"
+            "!setwelcomerole <role_id> - Set the welcome role by ID. Welcome message will be sent in reaction to role addition.\n"
             "!setmessage <message_id> <message> - Set a message by ID (ID \"welcome\" is the welcome message that gets sent into the specified welcome channel). Use \"<user>\" in the message text to mention the user.\n"
             "!listmessages - List all configured messages.\n"
             "!setbutton <message_id> <target_message_id> <button_label> - Add a button to a message.\n"
             "!sendmessage <message_id> - Send a configured message to the current channel for debugging.\n"
-            "!deletemesssage <message_id> - Delete a configured message by ID.\n"
+            "!deletemessage <message_id> - Delete a configured message by ID.\n"
             "!deletebutton <message_id> <button_label> - Delete a button from a message by its label.\n"
+            "!welcomeonjoinenabled <true|false> - Enable or disable welcome messages on member join.\n"
         )
         await message.channel.send(help_message)
     elif command[0] == "!init":
@@ -120,6 +120,8 @@ async def process_command(message: discord.Message):
             config = Server_config()
             config.server_id = message.guild.id
             config.welcome_channel_id = -1
+            config.welcome_role_id = -1
+            config.send_welcome_on_join = True
             config.messages = {}
             config.save_config()
             server_configs[message.guild.id] = config
@@ -266,6 +268,23 @@ async def process_command(message: discord.Message):
                     await message.channel.send(f"Button '{button_label}' not found in message '{message_id}'.")
             else:
                 await message.channel.send(f"Message ID '{message_id}' not found.")
+        else:
+            await message.channel.send("Server config not found.")
+    elif command[0] == "!welcomeonjoinenabled":
+        if len(command) < 2:
+            await message.channel.send("Usage: !welcomeonjoinenabled <true|false>")
+            return
+        value = command[1].lower()
+        if value not in ("true", "false"):
+            await message.channel.send("Please provide 'true' or 'false'.")
+            return
+        enabled = value == "true"
+        server_config = server_configs.get(message.guild.id)
+        if server_config:
+            server_config.send_welcome_on_join = enabled
+            server_config.save_config()
+            status = "enabled" if enabled else "disabled"
+            await message.channel.send(f"Welcome on join has been {status}.")
         else:
             await message.channel.send("Server config not found.")
 

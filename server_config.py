@@ -3,6 +3,7 @@ class Server_config:
 	welcome_channel_id = -1
 	server_id = -1
 	welcome_role_id = -1
+	send_welcome_on_join = False
 
 	def __init__(self):
 		pass
@@ -15,6 +16,7 @@ class Server_config:
 		self.welcome_channel_id = config.get('welcome_channel_id', -1)
 		self.server_id = config.get('server_id', -1)
 		self.welcome_role_id = config.get('welcome_role_id', -1)
+		self.send_welcome_on_join = config.get('send_welcome_on_join', False)
 
 	def save_config(self):
 		import json
@@ -23,7 +25,8 @@ class Server_config:
 				'messages': self.messages,
 				'welcome_channel_id': self.welcome_channel_id,
 				'server_id': self.server_id,
-				'welcome_role_id': self.welcome_role_id
+				'welcome_role_id': self.welcome_role_id,
+				'send_welcome_on_join': self.send_welcome_on_join
 			}, f, indent=4)
 
 	def get_message(self, message_id):
