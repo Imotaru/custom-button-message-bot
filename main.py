@@ -64,9 +64,6 @@ async def on_member_update(before: discord.Member, after: discord.Member):
         print("no server config found for this guild id " + str(after.guild.id))
         return
     
-    if server_config.welcome_role_id == -1 or server_config.welcome_channel_id == -1:
-        return
-
     # roles added = after − before
     before_ids = {r.id for r in before.roles}
     after_ids  = {r.id for r in after.roles}
@@ -75,8 +72,24 @@ async def on_member_update(before: discord.Member, after: discord.Member):
     if not added:
         return
 
-    if added & {server_config.welcome_role_id}:
-        await send_welcome_message(after, server_config)
+    highest_prio = -1_000_000_000
+    highest_prio_trigger = -1
+    for role in added:
+        for role_trigger in server_config.role_triggers.items():
+            role_id = int(role_trigger[0])
+            message_id = role_trigger[1]['message_id']
+            priority = role_trigger[1]['priority']
+            if role == role_id and priority > highest_prio:
+                highest_prio = priority
+                highest_prio_trigger = message_id
+    
+    if highest_prio_trigger != -1:
+        await send_button_message(
+            target=client.get_channel(server_config.welcome_channel_id),
+            message_id=highest_prio_trigger,
+            guild_id=after.guild.id,
+            addressed_user=after
+        )
 
 
 @client.event
@@ -110,6 +123,9 @@ async def process_command(message: discord.Message):
             "!deletemessage <message_id> - Delete a configured message by ID.\n"
             "!deletebutton <message_id> <button_label> - Delete a button from a message by its label.\n"
             "!welcomeonjoinenabled <true|false> - Enable or disable welcome messages on member join.\n"
+            "!addroletrigger <role_id> <message_id> <priority (int)> - Send a message when a user is given a specific role, if multiple roles get added at once the highest prio one gets sent.\n"
+            "!deleteroletrigger <role_id> - Delete a role trigger.\n"
+            "!listroletriggers - List all role triggers for this server.\n"
         )
         await message.channel.send(help_message)
     elif command[0] == "!init":
@@ -285,6 +301,56 @@ async def process_command(message: discord.Message):
             server_config.save_config()
             status = "enabled" if enabled else "disabled"
             await message.channel.send(f"Welcome on join has been {status}.")
+        else:
+            await message.channel.send("Server config not found.")
+    elif command[0] == "!addroletrigger":
+        if len(command) < 4:
+            await message.channel.send("Usage: !addroletrigger <role_id> <message_id> <priority (int)>")
+            return
+        try:
+            role_id = int(command[1].replace("<@&", "").replace(">", ""))
+            message_id = command[2]
+            priority = int(command[3])
+            server_config = server_configs.get(message.guild.id)
+            if server_config:
+                server_config.set_role_trigger(role_id, message_id, priority)
+                await message.channel.send(f"Role trigger added: Role ID '{role_id}' will send message '{message_id}' with priority {priority}.")
+            else:
+                await message.channel.send("Server config not found.")
+        except ValueError:
+            await message.channel.send("Please provide valid role ID and priority.")
+    elif command[0] == "!deleteroletrigger":
+        if len(command) < 2:
+            await message.channel.send("Usage: !deleteroletrigger <role_id>")
+            return
+        try:
+            role_id = int(command[1].replace("<@&", "").replace(">", ""))
+            server_config = server_configs.get(message.guild.id)
+            if server_config:
+                if str(role_id) in server_config.role_triggers:
+                    del server_config.role_triggers[str(role_id)]
+                    server_config.save_config()
+                    await message.channel.send(f"Role trigger for Role ID '{role_id}' deleted.")
+                else:
+                    await message.channel.send(f"No role trigger found for Role ID '{role_id}'.")
+            else:
+                await message.channel.send("Server config not found.")
+        except ValueError:
+            await message.channel.send("Please provide a valid role ID.")
+    elif command[0] == "!listroletriggers":
+        server_config = server_configs.get(message.guild.id)
+        if server_config:
+            if not server_config.role_triggers:
+                await message.channel.send("No role triggers configured.")
+            else:
+                lines = ["Configured role triggers:"]
+                for role_id, trigger in server_config.role_triggers.items():
+                    message_id = trigger.get("message_id", "(no message)")
+                    priority = trigger.get("priority", 0)
+                    role = message.guild.get_role(int(role_id))
+                    role_name = role.name if role else f"Role ID {role_id}"
+                    lines.append(f"- {role_name} (ID: {role_id}): Message ID '{message_id}', Priority {priority}")
+                await message.channel.send("\n".join(lines))
         else:
             await message.channel.send("Server config not found.")
 

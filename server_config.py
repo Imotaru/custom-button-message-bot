@@ -4,6 +4,7 @@ class Server_config:
 	server_id = -1
 	welcome_role_id = -1
 	send_welcome_on_join = False
+	role_triggers = {}
 
 	def __init__(self):
 		pass
@@ -17,6 +18,7 @@ class Server_config:
 		self.server_id = config.get('server_id', -1)
 		self.welcome_role_id = config.get('welcome_role_id', -1)
 		self.send_welcome_on_join = config.get('send_welcome_on_join', False)
+		self.role_triggers = config.get('role_triggers', {})
 
 	def save_config(self):
 		import json
@@ -26,7 +28,8 @@ class Server_config:
 				'welcome_channel_id': self.welcome_channel_id,
 				'server_id': self.server_id,
 				'welcome_role_id': self.welcome_role_id,
-				'send_welcome_on_join': self.send_welcome_on_join
+				'send_welcome_on_join': self.send_welcome_on_join,
+				'role_triggers': self.role_triggers
 			}, f, indent=4)
 
 	def get_message(self, message_id):
@@ -53,3 +56,10 @@ class Server_config:
 			else:
 				buttons.append({'label': button_label, 'target': target_message_id})
 			self.set_message(message_id, message.get('content'), buttons)
+	
+	def set_role_trigger(self, role_id, message_id, priority):
+		self.role_triggers[str(role_id)] = {
+			'message_id': message_id,
+			'priority': priority
+		}
+		self.save_config()
