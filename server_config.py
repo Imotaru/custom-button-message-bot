@@ -2,6 +2,7 @@ class Server_config:
 	messages = {}
 	welcome_channel_id = -1
 	server_id = -1
+	welcome_role_id = -1
 
 	def __init__(self):
 		pass
@@ -13,6 +14,7 @@ class Server_config:
 		self.messages = config.get('messages', {})
 		self.welcome_channel_id = config.get('welcome_channel_id', -1)
 		self.server_id = config.get('server_id', -1)
+		self.welcome_role_id = config.get('welcome_role_id', -1)
 
 	def save_config(self):
 		import json
@@ -20,7 +22,8 @@ class Server_config:
 			json.dump({
 				'messages': self.messages,
 				'welcome_channel_id': self.welcome_channel_id,
-				'server_id': self.server_id
+				'server_id': self.server_id,
+				'welcome_role_id': self.welcome_role_id
 			}, f, indent=4)
 
 	def get_message(self, message_id):

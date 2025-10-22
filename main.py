@@ -32,6 +32,12 @@ async def on_ready():
     print(f'{client.user.name} has connected to Discord!')
 
 
+async def send_welcome_message(member: discord.Member, server_config: Server_config):
+    channel = client.get_channel(server_config.welcome_channel_id)
+    if channel and server_config.get_message('welcome'):
+        await send_button_message(channel, 'welcome', member.guild.id, member)
+
+
 @client.event
 async def on_member_join(member):
     if member.bot:
@@ -41,11 +47,38 @@ async def on_member_join(member):
     if not server_config:
         print("no server config found for this guild id " + str(member.guild.id))
         return
+
+    # don't send a message on join if the welcome role is set or the welcome channel is not set
+    if server_config.welcome_role_id != -1 or server_config.welcome_channel_id == -1:
+        return
+
+    await send_welcome_message(member, server_config)
+
+
+@client.event
+async def on_member_update(before: discord.Member, after: discord.Member):
+    if after.bot:
+        return
+
+    server_config = server_configs.get(after.guild.id)
+    if not server_config:
+        print("no server config found for this guild id " + str(after.guild.id))
+        return
     
-    # send a welcome message to the welcome channel
-    channel = client.get_channel(server_config.welcome_channel_id)
-    if channel and server_config.get_message('welcome'):
-        await send_button_message(channel, 'welcome', member.guild.id, member)
+    if server_config.welcome_role_id == -1 or server_config.welcome_channel_id == -1:
+        return
+
+    # roles added = after − before
+    before_ids = {r.id for r in before.roles}
+    after_ids  = {r.id for r in after.roles}
+    added = after_ids - before_ids
+
+    if not added:
+        return
+
+    if added & {server_config.welcome_role_id}:
+        await send_welcome_message(after, server_config)
+
 
 @client.event
 async def on_message(message):
@@ -70,6 +103,7 @@ async def process_command(message: discord.Message):
             "Available commands:\n"
             "!init - Initialize server config (only if not already initialized).\n"
             "!setwelcomechannel <channel_id> - Set the welcome channel by ID.\n"
+            "!setwelcomerole <role_id> - Set the welcome role by ID. If this value is set to anything other than -1 then the welcome message will be sent when the role is added instead of on join.\n"
             "!setmessage <message_id> <message> - Set a message by ID (ID \"welcome\" is the welcome message that gets sent into the specified welcome channel). Use \"<user>\" in the message text to mention the user.\n"
             "!listmessages - List all configured messages.\n"
             "!setbutton <message_id> <target_message_id> <button_label> - Add a button to a message.\n"
@@ -109,6 +143,33 @@ async def process_command(message: discord.Message):
                 await message.channel.send("Invalid channel ID or channel does not belong to this server.")
         except ValueError:
             await message.channel.send("Please provide a valid channel ID.")
+    elif command[0] == "!setwelcomerole":
+        if len(command) < 2:
+            await message.channel.send("Please provide a role ID.")
+            return
+        try:
+            if command[1] == "-1":
+                role_id = -1
+            else:
+                role_id = int(command[1].replace("<@&", "").replace(">", ""))
+            server_config = server_configs.get(message.guild.id)
+            if server_config:
+                if role_id != -1:
+                    role = message.guild.get_role(role_id)
+                    if role:
+                        server_config.welcome_role_id = role_id
+                        server_config.save_config()
+                        await message.channel.send(f"Welcome role set to: {role.name}")
+                    else:
+                        await message.channel.send("Invalid role ID.")
+                else:
+                    server_config.welcome_role_id = role_id
+                    server_config.save_config()
+                    await message.channel.send("Welcome role cleared.")
+            else:
+                await message.channel.send("Server config not found.")
+        except ValueError:
+            await message.channel.send("Please provide a valid role ID.")
     elif command[0] == "!listmessages":
         server_config = server_configs.get(message.guild.id)
         if server_config:
