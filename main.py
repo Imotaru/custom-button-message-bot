@@ -34,6 +34,9 @@ async def on_ready():
 
 @client.event
 async def on_member_join(member):
+    if member.bot:
+        return
+
     server_config = server_configs.get(member.guild.id)
     if not server_config:
         print("no server config found for this guild id " + str(member.guild.id))
