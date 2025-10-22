@@ -73,7 +73,7 @@ async def process_command(message: discord.Message):
             "!setmessage <message_id> <message> - Set a message by ID (ID \"welcome\" is the welcome message that gets sent into the specified welcome channel). Use \"<user>\" in the message text to mention the user.\n"
             "!listmessages - List all configured messages.\n"
             "!setbutton <message_id> <target_message_id> <button_label> - Add a button to a message.\n"
-            "!sendmessage <message_id> - Send a configured message to the current channel.\n"
+            "!sendmessage <message_id> - Send a configured message to the current channel for debugging.\n"
             "!deletemesssage <message_id> - Delete a configured message by ID.\n"
             "!deletebutton <message_id> <button_label> - Delete a button from a message by its label.\n"
         )
@@ -89,7 +89,7 @@ async def process_command(message: discord.Message):
             config.messages = {}
             config.save_config()
             server_configs[message.guild.id] = config
-            await message.channel.send("Server config initialized, please use !setwelcome <message> to set the welcome message and !setwelcomechannel <channel_id> to set the welcome channel.")
+            await message.channel.send("Server config initialized, please use `!setmessage welcome <message>` to set the welcome message and `!setwelcomechannel <channel_id>` to set the welcome channel.")
     elif command[0] == "!setwelcomechannel":
         if len(command) < 2:
             await message.channel.send("Please provide a channel ID.")
