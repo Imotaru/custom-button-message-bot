@@ -9,6 +9,8 @@ from server_config import Server_config
 # each message should also have a list of customizable buttons that can link to another message
 # all of this should be able to be edited by an admin user through discord commands
 
+os.makedirs('config', exist_ok=True)
+
 intents = discord.Intents.default()
 intents.members = True
 intents.guilds = True
