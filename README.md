@@ -1,4 +1,4 @@
-# AI Plans Discord Bot
+# Custom Message Discord Bot
 
 A configurable Discord bot that sends welcome messages and role-triggered messages with interactive button navigation. Each server gets its own JSON-based config, fully manageable through Discord admin commands.
 
